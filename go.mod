@@ -1,4 +1,4 @@
-module openmetric-exposer
+module predictable-metrics
 
 go 1.13
 
