@@ -25,6 +25,12 @@ var (
 		Help:    "The distribution of seconds across runtime",
 		Buckets: prometheus.LinearBuckets(10, 10, 5),
 	})
+
+	summary = prometheus.NewSummary(prometheus.SummaryOpts{
+		Name:       "seconds_distribution_summary",
+		Help:       "The summary of seconds across runtime",
+		Objectives: map[float64]float64{},
+	})
 )
 
 func recordMetricUptimeInSeconds() {
@@ -45,15 +51,26 @@ func recordMetricSecondsDistribution() {
 	}()
 }
 
+func recordSummaryMetrics() {
+	go func() {
+		ticker := time.Tick(time.Second)
+		for now := range ticker {
+			summary.Observe(float64(now.Second()))
+		}
+	}()
+}
+
 func main() {
 	recordMetricUptimeInSeconds()
 	recordMetricSecondsDistribution()
+	recordSummaryMetrics()
 
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(uptimeInSeconds, currentMinute, secondsDistribution)
+	registry.MustRegister(uptimeInSeconds, currentMinute, secondsDistribution, summary)
 
 	metricsHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	http.Handle("/metrics", metricsHandler)
 
+	log.Println("serving metrics at http://localhost:2112/metrics")
 	log.Fatal(http.ListenAndServe(":2112", nil))
 }
