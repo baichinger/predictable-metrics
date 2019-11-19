@@ -10,71 +10,71 @@ import (
 )
 
 var (
-	uptimeInSeconds = prometheus.NewCounter(prometheus.CounterOpts{
+	uptimeInSecondsCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "predictable",
+		Subsystem: "demo",
 		Name:      "uptime_in_seconds_counter",
 		Help:      "The uptime of this process in seconds",
-		Subsystem: "demo",
-		Namespace: "predictable",
 	})
 
-	currentMinute = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+	currentMinuteGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "predictable",
+		Subsystem: "demo",
 		Name:      "current_minute_gauge",
 		Help:      "The current minute of this hour",
-		Subsystem: "demo",
-		Namespace: "preditable",
 	}, func() float64 { return float64(time.Now().Minute()) })
 
-	secondsDistribution = prometheus.NewHistogram(prometheus.HistogramOpts{
+	secondsDistributionHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Namespace: "predictable",
+		Subsystem: "demo",
 		Name:      "seconds_distribution_histogram",
 		Help:      "The distribution of seconds across runtime",
-		Subsystem: "demo",
-		Namespace: "preditable",
 		Buckets:   prometheus.LinearBuckets(10, 10, 5),
 	})
 
-	summary = prometheus.NewSummary(prometheus.SummaryOpts{
-		Name:       "seconds_distribution_summary",
-		Help:       "The summary of seconds across runtime",
-		Objectives: map[float64]float64{},
+	secondsDistributionSummary = prometheus.NewSummary(prometheus.SummaryOpts{
+		Namespace:  "predictable",
 		Subsystem:  "demo",
-		Namespace:  "preditable",
+		Name:       "seconds_distribution_summary",
+		Help:       "The distribution of seconds across runtime",
+		Objectives: map[float64]float64{},
 	})
 )
 
-func recordMetricUptimeInSeconds() {
+func recordMetricCounter() {
 	go func() {
 		ticker := time.Tick(time.Second)
 		for range ticker {
-			uptimeInSeconds.Inc()
+			uptimeInSecondsCounter.Inc()
 		}
 	}()
 }
 
-func recordMetricSecondsDistribution() {
+func recordMetricHistogram() {
 	go func() {
 		ticker := time.Tick(time.Second)
 		for now := range ticker {
-			secondsDistribution.Observe(float64(now.Second()))
+			secondsDistributionHistogram.Observe(float64(now.Second()))
 		}
 	}()
 }
 
-func recordSummaryMetrics() {
+func recordMetricSummary() {
 	go func() {
 		ticker := time.Tick(time.Second)
 		for now := range ticker {
-			summary.Observe(float64(now.Second()))
+			secondsDistributionSummary.Observe(float64(now.Second()))
 		}
 	}()
 }
 
 func main() {
-	recordMetricUptimeInSeconds()
-	recordMetricSecondsDistribution()
-	recordSummaryMetrics()
+	recordMetricCounter()
+	recordMetricHistogram()
+	recordMetricSummary()
 
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(uptimeInSeconds, currentMinute, secondsDistribution, summary)
+	registry.MustRegister(uptimeInSecondsCounter, currentMinuteGauge, secondsDistributionHistogram, secondsDistributionSummary)
 
 	metricsHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	http.Handle("/metrics", metricsHandler)
